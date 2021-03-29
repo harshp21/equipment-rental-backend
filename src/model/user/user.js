@@ -14,7 +14,7 @@ var userSchema = new mongoose_1.default.Schema({
     emailId: {
         type: String,
         required: true,
-        vaidate: {
+        validate: {
             validator: function (value) {
                 return validator_1.default.isEmail(value);
             }

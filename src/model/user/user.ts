@@ -9,7 +9,7 @@ const userSchema = new mongoose.Schema({
     emailId: {
         type: String,
         required: true,
-        vaidate: {
+        validate: {
             validator: (value: string) => {
                 return validator.isEmail(value);
             }
