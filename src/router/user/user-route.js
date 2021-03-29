@@ -55,13 +55,25 @@ router.post('/login', function (req, res) { return __awaiter(void 0, void 0, voi
     return __generator(this, function (_b) {
         switch (_b.label) {
             case 0:
-                _b.trys.push([0, 3, , 4]);
+                _b.trys.push([0, 6, , 7]);
                 _a = req.body, emailId = _a.emailId, password = _a.password;
-                return [4 /*yield*/, user_1.User.findOne({ emailId: emailId })];
+                console.log(password);
+                if (!!validator_1.default.isEmail(emailId)) return [3 /*break*/, 1];
+                res.status(401).json({
+                    message: 'Enter a valid email id',
+                });
+                return [3 /*break*/, 5];
             case 1:
+                if (!(password.length < 6)) return [3 /*break*/, 2];
+                res.status(401).json({
+                    message: 'Password length should be greater than 6'
+                });
+                return [3 /*break*/, 5];
+            case 2: return [4 /*yield*/, user_1.User.findOne({ emailId: emailId })];
+            case 3:
                 user = _b.sent();
                 return [4 /*yield*/, bcrypt_1.default.compare(password, user.password)];
-            case 2:
+            case 4:
                 isUserAuthenticated = _b.sent();
                 if (isUserAuthenticated && user && user.isActive) {
                     token = jsonwebtoken_1.default.sign({ userId: user._id, emailId: user.emailId, username: user.username }, process.env.ACCESS_TOKEN_SECRET_KEY, { expiresIn: '1h' });
@@ -86,16 +98,17 @@ router.post('/login', function (req, res) { return __awaiter(void 0, void 0, voi
                         message: 'Provided credentials are wrong please verify',
                     });
                 }
-                return [3 /*break*/, 4];
-            case 3:
+                _b.label = 5;
+            case 5: return [3 /*break*/, 7];
+            case 6:
                 err_1 = _b.sent();
                 console.log(err_1);
                 // handle error response
-                res.status(400).json({
+                res.status(500).json({
                     message: 'Unable to Login user'
                 });
-                return [3 /*break*/, 4];
-            case 4: return [2 /*return*/];
+                return [3 /*break*/, 7];
+            case 7: return [2 /*return*/];
         }
     });
 }); });
@@ -105,27 +118,50 @@ router.post('/sign-up', function (req, res) { return __awaiter(void 0, void 0, v
     return __generator(this, function (_b) {
         switch (_b.label) {
             case 0:
-                _b.trys.push([0, 8, , 9]);
+                _b.trys.push([0, 12, , 13]);
                 _a = req.body, emailId = _a.emailId, password = _a.password, confirmPassword = _a.confirmPassword, username = _a.username;
-                return [4 /*yield*/, user_1.User.findOne({ emailId: emailId })];
+                if (!!validator_1.default.isEmail(emailId)) return [3 /*break*/, 1];
+                res.status(401).json({
+                    message: 'Enter a valid email id',
+                });
+                return [3 /*break*/, 11];
             case 1:
+                if (!(password.length < 6 || confirmPassword.length < 6)) return [3 /*break*/, 2];
+                res.status(401).json({
+                    message: 'Password length should be atleast 6',
+                });
+                return [3 /*break*/, 11];
+            case 2:
+                if (!(username === '')) return [3 /*break*/, 3];
+                res.status(401).json({
+                    message: 'Username cannot be blank',
+                });
+                return [3 /*break*/, 11];
+            case 3:
+                if (!(password !== confirmPassword)) return [3 /*break*/, 4];
+                res.status(401).json({
+                    message: 'Password and confirm password should be same',
+                });
+                return [3 /*break*/, 11];
+            case 4: return [4 /*yield*/, user_1.User.findOne({ emailId: emailId })];
+            case 5:
                 user = _b.sent();
-                if (!user) return [3 /*break*/, 2];
+                if (!user) return [3 /*break*/, 6];
                 res.status(400).json({
                     message: "Email already registered"
                 });
-                return [3 /*break*/, 7];
-            case 2:
-                if (!!validator_1.default.isEmail(emailId)) return [3 /*break*/, 3];
+                return [3 /*break*/, 11];
+            case 6:
+                if (!!validator_1.default.isEmail(emailId)) return [3 /*break*/, 7];
                 res.status(400).json({
                     message: "Invalid email address"
                 });
-                return [3 /*break*/, 7];
-            case 3: return [4 /*yield*/, bcrypt_1.default.genSalt(10)];
-            case 4:
+                return [3 /*break*/, 11];
+            case 7: return [4 /*yield*/, bcrypt_1.default.genSalt(10)];
+            case 8:
                 salt = _b.sent();
                 return [4 /*yield*/, bcrypt_1.default.hash(password, salt)];
-            case 5:
+            case 9:
                 hashPassword = _b.sent();
                 activationCode = crypto_1.default.randomBytes(32).toString('hex');
                 newUser = new user_1.User({
@@ -137,7 +173,7 @@ router.post('/sign-up', function (req, res) { return __awaiter(void 0, void 0, v
                     accountActivationCodeExpiry: Date.now() + 300000,
                 });
                 return [4 /*yield*/, newUser.save()];
-            case 6:
+            case 10:
                 result = _b.sent();
                 mailService = new mail_service_1.MailService();
                 mailSubject = 'Account Activation for Equipment Rental Portal';
@@ -150,16 +186,16 @@ router.post('/sign-up', function (req, res) { return __awaiter(void 0, void 0, v
                     message: "Mail has been sent to   " + mailTo + "  for account activation",
                     data: result
                 });
-                _b.label = 7;
-            case 7: return [3 /*break*/, 9];
-            case 8:
+                _b.label = 11;
+            case 11: return [3 /*break*/, 13];
+            case 12:
                 err_2 = _b.sent();
                 // handle error response
-                res.status(400).json({
+                res.status(500).json({
                     message: 'Unable to register user'
                 });
-                return [3 /*break*/, 9];
-            case 9: return [2 /*return*/];
+                return [3 /*break*/, 13];
+            case 13: return [2 /*return*/];
         }
     });
 }); });
@@ -197,7 +233,7 @@ router.post('/activate-account/:activationCode', function (req, res) { return __
             case 5:
                 err_3 = _a.sent();
                 // handle error response
-                res.json({
+                res.status(500).json({
                     message: 'Account activation failed, token expired'
                 });
                 return [3 /*break*/, 6];
@@ -210,18 +246,23 @@ router.post('/forgot-password', function (req, res) { return __awaiter(void 0, v
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
-                _a.trys.push([0, 5, , 6]);
+                _a.trys.push([0, 6, , 7]);
                 emailId = req.body.emailId;
-                return [4 /*yield*/, user_1.User.findOne({ emailId: emailId })];
-            case 1:
+                if (!!validator_1.default.isEmail(emailId)) return [3 /*break*/, 1];
+                res.status(401).json({
+                    message: 'Enter a valid email id'
+                });
+                return [3 /*break*/, 5];
+            case 1: return [4 /*yield*/, user_1.User.findOne({ emailId: emailId })];
+            case 2:
                 user = _a.sent();
-                if (!user) return [3 /*break*/, 3];
+                if (!user) return [3 /*break*/, 4];
                 resetToken = crypto_1.default.randomBytes(32).toString('hex');
                 // save the token in the db for that user.
                 user.resetPasswordToken = resetToken;
                 user.resetPasswordTokenExpiry = Date.now() + 30000;
                 return [4 /*yield*/, user.save()];
-            case 2:
+            case 3:
                 _a.sent();
                 mailService = new mail_service_1.MailService();
                 mailSubject = 'Reset Password for Equipment Rental Portal';
@@ -233,21 +274,21 @@ router.post('/forgot-password', function (req, res) { return __awaiter(void 0, v
                 res.json({
                     message: "Mail has been sent to " + user.emailId + "</h4> with further instructions",
                 });
-                return [3 /*break*/, 4];
-            case 3:
+                return [3 /*break*/, 5];
+            case 4:
                 res.status(401).json({
                     message: 'User not found',
                 });
-                _a.label = 4;
-            case 4: return [3 /*break*/, 6];
-            case 5:
+                _a.label = 5;
+            case 5: return [3 /*break*/, 7];
+            case 6:
                 err_4 = _a.sent();
                 // handle error response
                 res.status(400).json({
                     message: 'Unable to recover your password',
                 });
-                return [3 /*break*/, 6];
-            case 6: return [2 /*return*/];
+                return [3 /*break*/, 7];
+            case 7: return [2 /*return*/];
         }
     });
 }); });
@@ -256,7 +297,7 @@ router.post('/reset-password', function (req, res) { return __awaiter(void 0, vo
     return __generator(this, function (_b) {
         switch (_b.label) {
             case 0:
-                _b.trys.push([0, 7, , 8]);
+                _b.trys.push([0, 8, , 9]);
                 _a = req.body, password = _a.password, confirmPassword = _a.confirmPassword, resetToken = _a.resetToken;
                 return [4 /*yield*/, user_1.User.findOne({ resetPasswordToken: resetToken, resetPasswordTokenExpiry: { $gt: Date.now() } })
                     //check if apssword is valid
@@ -264,19 +305,25 @@ router.post('/reset-password', function (req, res) { return __awaiter(void 0, vo
             case 1:
                 user = _b.sent();
                 isPasswordValid = (password === confirmPassword);
-                if (!(user && user.isActive && isPasswordValid)) return [3 /*break*/, 5];
-                return [4 /*yield*/, bcrypt_1.default.genSalt(10)];
+                if (!!isPasswordValid) return [3 /*break*/, 2];
+                res.status(401).json({
+                    message: 'Password and confirm password should be same'
+                });
+                return [3 /*break*/, 7];
             case 2:
+                if (!(user && user.isActive && isPasswordValid)) return [3 /*break*/, 6];
+                return [4 /*yield*/, bcrypt_1.default.genSalt(10)];
+            case 3:
                 salt = _b.sent();
                 return [4 /*yield*/, bcrypt_1.default.hash(password, salt)];
-            case 3:
+            case 4:
                 hashPassword = _b.sent();
                 // save the new password for the user in db 
                 user.password = hashPassword;
                 user.resetPasswordToken = '';
                 user.resetPasswordTokenExpiry = Date.now();
                 return [4 /*yield*/, user.save()];
-            case 4:
+            case 5:
                 _b.sent();
                 mailService = new mail_service_1.MailService();
                 mailSubject = 'Successfully Reset Password for Equipment Rental Portal';
@@ -289,21 +336,21 @@ router.post('/reset-password', function (req, res) { return __awaiter(void 0, vo
                     message: "Password was changed successfully, check your mail for confirmation",
                     user: user
                 });
-                return [3 /*break*/, 6];
-            case 5:
+                return [3 /*break*/, 7];
+            case 6:
                 res.status(401).json({
                     message: "Failed to update password, token invalid",
                 });
-                _b.label = 6;
-            case 6: return [3 /*break*/, 8];
-            case 7:
+                _b.label = 7;
+            case 7: return [3 /*break*/, 9];
+            case 8:
                 err_5 = _b.sent();
                 //handle error response
                 res.status(401).json({
                     message: 'Unable to change the password'
                 });
-                return [3 /*break*/, 8];
-            case 8: return [2 /*return*/];
+                return [3 /*break*/, 9];
+            case 9: return [2 /*return*/];
         }
     });
 }); });

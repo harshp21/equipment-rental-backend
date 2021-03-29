@@ -15,41 +15,52 @@ router.post('/login', async (req: Request, res: Response) => {
     try {
         const { emailId, password } = req.body;
 
-        // check if user exists
-        const user: IUser = await User.findOne({ emailId });
-
-        // check if passwords match
-        let isUserAuthenticated: boolean = await bcrypt.compare(password, user.password);
-        if (isUserAuthenticated && user && user.isActive) {
-
-            // create a jwt token for the user payload and send it to user
-            const token: string = jwt.sign({ userId: user._id, emailId: user.emailId, username: user.username }, process.env.ACCESS_TOKEN_SECRET_KEY, { expiresIn: '1h' });
-
-            // send response to the user
-            res.json({
-                message: 'User Logged in',
-                token,
-                user
-            })
-        } else if (!user.isActive) {
-
-            // send response if the user is not activated
+        console.log(password);
+        if (!validator.isEmail(emailId)) {
             res.status(401).json({
-                status: 'Failed to login',
-                message: 'Account is not activated',
+                message: 'Enter a valid email id',
+            })
+        } else if (password.length < 6) {
+            res.status(401).json({
+                message: 'Password length should be greater than 6'
             })
         } else {
+            // check if user exists
+            const user: IUser = await User.findOne({ emailId });
 
-            // send response if the credentials are invalid
-            res.status(401).json({
-                status: 'Failed to login',
-                message: 'Provided credentials are wrong please verify',
-            })
+            // check if passwords match
+            let isUserAuthenticated: boolean = await bcrypt.compare(password, user.password);
+            if (isUserAuthenticated && user && user.isActive) {
+
+                // create a jwt token for the user payload and send it to user
+                const token: string = jwt.sign({ userId: user._id, emailId: user.emailId, username: user.username }, process.env.ACCESS_TOKEN_SECRET_KEY, { expiresIn: '1h' });
+
+                // send response to the user
+                res.json({
+                    message: 'User Logged in',
+                    token,
+                    user
+                })
+            } else if (!user.isActive) {
+
+                // send response if the user is not activated
+                res.status(401).json({
+                    status: 'Failed to login',
+                    message: 'Account is not activated',
+                })
+            } else {
+
+                // send response if the credentials are invalid
+                res.status(401).json({
+                    status: 'Failed to login',
+                    message: 'Provided credentials are wrong please verify',
+                })
+            }
         }
     } catch (err) {
         console.log(err);
         // handle error response
-        res.status(400).json({
+        res.status(500).json({
             message: 'Unable to Login user'
         })
     }
@@ -61,63 +72,82 @@ router.post('/sign-up', async (req: Request, res: Response) => {
         // get details from request
         const { emailId, password, confirmPassword, username } = req.body;
 
-        // check if user exists
-        const user: IUser = await User.findOne({ emailId });
-
-        // validate the details send for registration
-        if (user) {
-            res.status(400).json({
-                message: "Email already registered"
-            });
-        } else if (!validator.isEmail(emailId)) {
-            res.status(400).json({
-                message: "Invalid email address"
-            });
-        } else {
-            // encrypt the password for security purpose
-            const salt = await bcrypt.genSalt(10);
-            const hashPassword = await bcrypt.hash(password, salt);
-
-            // create a random string for activation code
-            const activationCode = crypto.randomBytes(32).toString('hex');
-
-            // save details in the db
-            const newUser: IUser = new User({
-                emailId,
-                username,
-                password: hashPassword,
-                accountActivationCode: activationCode,
-
-                // set the expiration time to 5 mins from the time the activation code was created
-                accountActivationCodeExpiry: Date.now() + 300000,
+        // validate credentials
+        if (!validator.isEmail(emailId)) {
+            res.status(401).json({
+                message: 'Enter a valid email id',
             })
-            const result = await newUser.save();
+        } else if (password.length < 6 || confirmPassword.length < 6) {
+            res.status(401).json({
+                message: 'Password length should be atleast 6',
+            })
+        } else if (username === '') {
+            res.status(401).json({
+                message: 'Username cannot be blank',
+            })
+        } else if (password !== confirmPassword) {
+            res.status(401).json({
+                message: 'Password and confirm password should be same',
+            })
+        } else {
 
-            // Set value to send for account activation
-            const mailService = new MailService();
-            const mailSubject = 'Account Activation for Equipment Rental Portal';
-            const mailBody = `<div>
+            // check if user exists
+            const user: IUser = await User.findOne({ emailId });
+
+            // validate the details send for registration
+            if (user) {
+                res.status(400).json({
+                    message: "Email already registered"
+                });
+            } else if (!validator.isEmail(emailId)) {
+                res.status(400).json({
+                    message: "Invalid email address"
+                });
+            } else {
+                // encrypt the password for security purpose
+                const salt = await bcrypt.genSalt(10);
+                const hashPassword = await bcrypt.hash(password, salt);
+
+                // create a random string for activation code
+                const activationCode = crypto.randomBytes(32).toString('hex');
+
+                // save details in the db
+                const newUser: IUser = new User({
+                    emailId,
+                    username,
+                    password: hashPassword,
+                    accountActivationCode: activationCode,
+
+                    // set the expiration time to 5 mins from the time the activation code was created
+                    accountActivationCodeExpiry: Date.now() + 300000,
+                })
+                const result = await newUser.save();
+
+                // Set value to send for account activation
+                const mailService = new MailService();
+                const mailSubject = 'Account Activation for Equipment Rental Portal';
+                const mailBody = `<div>
                                 <h4>
                                  To activate the account please 
                                      <a href="${process.env.REQUEST_ORIGIN}/activate-account/${activationCode}">click here</a>
                                 </h4>
                              </div>`;
 
-            const mailTo = emailId;
+                const mailTo = emailId;
 
-            // send the mail to the user for account activation
-            mailService.sendMail(mailSubject, mailBody, mailTo);
+                // send the mail to the user for account activation
+                mailService.sendMail(mailSubject, mailBody, mailTo);
 
-            // send response message 
-            res.json({
-                message: `Mail has been sent to   ${mailTo}  for account activation`,
-                data: result
-            })
+                // send response message 
+                res.json({
+                    message: `Mail has been sent to   ${mailTo}  for account activation`,
+                    data: result
+                })
+            }
         }
-
     } catch (err) {
         // handle error response
-        res.status(400).json({
+        res.status(500).json({
             message: 'Unable to register user'
         })
     }
@@ -151,7 +181,7 @@ router.post('/activate-account/:activationCode', async (req: Request, res: Respo
     } catch (err) {
 
         // handle error response
-        res.json({
+        res.status(500).json({
             message: 'Account activation failed, token expired'
         })
 
@@ -162,42 +192,48 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
     try {
         const { emailId } = req.body;
 
-        // check if the user exists with the email
-        const user = await User.findOne({ emailId });
+        if (!validator.isEmail(emailId)) {
+            res.status(401).json({
+                message: 'Enter a valid email id'
+            })
+        } else {
 
-        if (user) {
-            // create a reset password token with expiry time
-            const resetToken = crypto.randomBytes(32).toString('hex');
+            // check if the user exists with the email
+            const user = await User.findOne({ emailId });
 
-            // save the token in the db for that user.
-            user.resetPasswordToken = resetToken;
-            user.resetPasswordTokenExpiry = Date.now() + 30000;
-            await user.save();
+            if (user) {
+                // create a reset password token with expiry time
+                const resetToken = crypto.randomBytes(32).toString('hex');
 
-            // send a mail with the reset password link with the reset password token to the user
-            const mailService = new MailService();
-            const mailSubject = 'Reset Password for Equipment Rental Portal';
-            const mailBody = `<div>
+                // save the token in the db for that user.
+                user.resetPasswordToken = resetToken;
+                user.resetPasswordTokenExpiry = Date.now() + 30000;
+                await user.save();
+
+                // send a mail with the reset password link with the reset password token to the user
+                const mailService = new MailService();
+                const mailSubject = 'Reset Password for Equipment Rental Portal';
+                const mailBody = `<div>
                                 <h3>Reset Password</h3>
                                 <p>Please click the given link to reset your password <a target="_blank" href="${process.env.REQUEST_ORIGIN}/reset-password/${encodeURI(resetToken)}"> click here </a></p>
                             </div>`;
 
-            const mailTo = user.emailId;
+                const mailTo = user.emailId;
 
-            // send mail for reset password
-            mailService.sendMail(mailSubject, mailBody, mailTo);
+                // send mail for reset password
+                mailService.sendMail(mailSubject, mailBody, mailTo);
 
-            // send response to user
-            res.json({
-                message: `Mail has been sent to ${user.emailId}</h4> with further instructions`,
-            })
+                // send response to user
+                res.json({
+                    message: `Mail has been sent to ${user.emailId}</h4> with further instructions`,
+                })
 
-        } else {
-            res.status(401).json({
-                message: 'User not found',
-            })
+            } else {
+                res.status(401).json({
+                    message: 'User not found',
+                })
+            }
         }
-
     } catch (err) {
         // handle error response
         res.status(400).json({
@@ -217,8 +253,13 @@ router.post('/reset-password', async (req: Request, res: Response) => {
         //check if apssword is valid
         const isPasswordValid: boolean = (password === confirmPassword);
 
+        if (!isPasswordValid) {
+            res.status(401).json({
+                message: 'Password and confirm password should be same'
+            })
+        }
         // check if the password and confirm password is same and valid
-        if (user && user.isActive && isPasswordValid) {
+        else if (user && user.isActive && isPasswordValid) {
 
             // encrypt the password for security
             let salt = await bcrypt.genSalt(10);
